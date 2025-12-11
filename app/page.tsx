@@ -1,4 +1,62 @@
+'use client';
+
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+
+type Screenshot = {
+  id: string;
+  name: string;
+  previewUrl: string;
+};
+
 export default function Home() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewUrls = useRef<Set<string>>(new Set());
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+
+  const hasScreenshots = useMemo(() => screenshots.length > 0, [screenshots]);
+
+  const handlePlusClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(event.target.files ?? []).filter((file) =>
+      file.type.startsWith("image/")
+    );
+
+    if (!newFiles.length) {
+      event.target.value = "";
+      return;
+    }
+
+    const preparedFiles = newFiles.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrls.current.add(previewUrl);
+      return {
+        id: `${file.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        previewUrl,
+      };
+    });
+
+    setScreenshots((prev) => [...prev, ...preparedFiles]);
+    event.target.value = "";
+  };
+
+  const clearScreenshots = () => {
+    if (!screenshots.length) return;
+    previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrls.current.clear();
+    setScreenshots([]);
+  };
+
+  useEffect(() => {
+    return () => {
+      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.current.clear();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-8 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       {/* Header */}
@@ -15,7 +73,7 @@ export default function Home() {
             <span className="text-xs text-text-secondary uppercase tracking-wider">Free Snaps</span>
             <span className="text-success font-bold">5 left</span>
           </div>
-          <button className="bg-gradient-to-r from-accent-start to-accent-end text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity">
+          <button className="bg-success text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity">
             Subscribe
           </button>
         </div>
@@ -26,27 +84,77 @@ export default function Home() {
         
         {/* Chat / Result Area */}
         <div className="bg-surface rounded-2xl p-6 min-h-[400px] flex flex-col gap-4 shadow-lg border border-white/5">
-          <div className="flex-grow flex flex-col justify-center items-center text-center p-8 opacity-60">
-            <div className="w-16 h-16 mb-4 rounded-full bg-surface border-2 border-dashed border-text-secondary flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-text-secondary">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-              </svg>
+          {hasScreenshots ? (
+            <div className="flex flex-col flex-grow gap-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary">Selected screenshots</h3>
+                  <p className="text-sm text-text-secondary">
+                    {screenshots.length} file{screenshots.length > 1 ? "s" : ""} ready to analyze
+                  </p>
+                </div>
+                <button
+                  onClick={clearScreenshots}
+                  className="text-sm text-primary font-semibold hover:underline"
+                  type="button"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {screenshots.map((shot) => (
+                  <div
+                    key={shot.id}
+                    className="rounded-xl border border-white/10 bg-surface p-3 flex flex-col gap-3"
+                  >
+                    <div className="relative w-full pt-[56%] overflow-hidden rounded-lg bg-black/20">
+                      <img
+                        src={shot.previewUrl}
+                        alt={shot.name}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    </div>
+                    <p className="text-xs text-text-secondary truncate">{shot.name}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-text-primary mb-2">Upload your homework</h3>
-            <p className="text-text-secondary max-w-sm">
-              Take a photo of a math problem or question. Our vision AI will analyze it and help you solve it.
-            </p>
-          </div>
+          ) : (
+            <div className="flex-grow flex flex-col justify-center items-center text-center p-8 opacity-60">
+              <div className="w-16 h-16 mb-4 rounded-full bg-surface border-2 border-dashed border-text-secondary flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-text-secondary">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">Upload your homework</h3>
+              <p className="text-text-secondary max-w-sm">
+                Take a photo of a math problem or question. Our vision AI will analyze it and help you solve it.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Input Area */}
         <div className="relative">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-primary">
+          <button
+            type="button"
+            onClick={handlePlusClick}
+            className="absolute inset-y-0 left-1 flex items-center justify-center w-10 text-primary rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/40 hover:bg-white/5 transition-colors z-10"
+            aria-label="Add screenshots"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-          </div>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFilesSelected}
+          />
           <input 
             type="text" 
             placeholder="Type a question or upload a photo..." 
