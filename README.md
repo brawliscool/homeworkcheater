@@ -2,23 +2,46 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure your DeepSeek credentials
+
+Create a `.env.local` file in the project root and add your API key. The server reads the variables at build/start time.
+
+```bash
+DEEPSEEK_API_KEY=sk-your-key-here
+# Optional overrides
+# DEEPSEEK_API_URL=https://api.deepseek.com/v1/chat/completions
+# DEEPSEEK_MODEL=deepseek-chat
+```
+
+> ⚠️ Never commit `.env.local` or share your real key publicly.
+
+### 3. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:3000](http://localhost:3000) to use HomeworkHelper. Type a homework question (or add screenshots) and the app will call the `/api/solve` endpoint, which proxies the request to DeepSeek and streams back a step-by-step solution.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+### 4. (Optional) Test the API route directly
+
+```bash
+curl -X POST http://localhost:3000/api/solve \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Explain how to solve 2x + 5 = 15"}'
+```
+
+You should receive a JSON payload containing the generated answer.
 
 ## Learn More
 
