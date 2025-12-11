@@ -73,7 +73,7 @@ export default function Home() {
             <span className="text-xs text-text-secondary uppercase tracking-wider">Free Snaps</span>
             <span className="text-success font-bold">5 left</span>
           </div>
-          <button className="bg-success text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity">
+          <button className="bg-success text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity" style={{ backgroundColor: "var(--success)" }}>
             Subscribe
           </button>
         </div>
