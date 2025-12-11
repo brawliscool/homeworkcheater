@@ -140,7 +140,7 @@ export default function Home() {
           <button
             type="button"
             onClick={handlePlusClick}
-            className="absolute inset-y-0 left-1 flex items-center justify-center w-10 text-primary rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/40 hover:bg-white/5 transition-colors"
+            className="absolute inset-y-0 left-1 flex items-center justify-center w-10 text-primary rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/40 hover:bg-white/5 transition-colors z-10"
             aria-label="Add screenshots"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
