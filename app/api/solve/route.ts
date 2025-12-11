@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
 const DEEPSEEK_API_URL =
-  process.env.DEEPSEEK_API_URL ?? "https://api.deepseek.com/v1/chat/completions";
-const DEFAULT_MODEL = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+  process.env.DEEPSEEK_API_URL ??
+  "https://api.deepseek.com/v3.2_speciale_expires_on_20251215";
+const DEFAULT_MODEL =
+  process.env.DEEPSEEK_MODEL ?? "deepseek-v3.2_speciale_expires_on_20251215";
 
 type SolveRequest = {
   question?: string;

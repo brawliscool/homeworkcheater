@@ -15,8 +15,8 @@ Create a `.env.local` file in the project root and add your API key. The server 
 ```bash
 DEEPSEEK_API_KEY=sk-your-key-here
 # Optional overrides
-# DEEPSEEK_API_URL=https://api.deepseek.com/v1/chat/completions
-# DEEPSEEK_MODEL=deepseek-chat
+# DEEPSEEK_API_URL=https://api.deepseek.com/v3.2_speciale_expires_on_20251215
+# DEEPSEEK_MODEL=deepseek-v3.2_speciale_expires_on_20251215
 ```
 
 > ⚠️ Never commit `.env.local` or share your real key publicly.
