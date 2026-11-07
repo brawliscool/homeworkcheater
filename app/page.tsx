@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
 
 type Attachment = { id: string; file: File; preview: string };
@@ -197,7 +198,7 @@ export default function Home() {
                 <input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple ref={fileInput} onChange={onFiles} aria-label="Upload homework screenshots"/>
                 <input className="visually-hidden" type="file" accept="image/*" capture="environment" ref={cameraInput} onChange={onFiles} aria-label="Take a photo of homework"/>
               </div>
-              {!!attachments.length && <div className="preview-grid" aria-label="Attached images">{attachments.map((attachment) => <div className="preview-card" key={attachment.id}><img src={attachment.preview} alt={attachment.file.name || "Homework attachment"}/><button type="button" disabled={isSolving} aria-label={`Remove ${attachment.file.name}`} onClick={() => removeImage(attachment.id)}><Icon name="close" size={15}/></button></div>)}</div>}
+              {!!attachments.length && <div className="preview-grid" aria-label="Attached images">{attachments.map((attachment) => <div className="preview-card" key={attachment.id}><Image unoptimized src={attachment.preview} alt={attachment.file.name || "Homework attachment"} width={98} height={98}/><button type="button" disabled={isSolving} aria-label={`Remove ${attachment.file.name}`} onClick={() => removeImage(attachment.id)}><Icon name="close" size={15}/></button></div>)}</div>}
               <label htmlFor="question" className="question-label">Or type your question <span>(optional when uploading a photo)</span></label>
               <textarea id="question" rows={3} maxLength={4000} value={question} disabled={isSolving} onChange={(event) => setQuestion(event.target.value)} placeholder="What do you need help understanding? You can also ask a follow-up…"/>
               {error && <p className="error-message" role="alert">{error}</p>}
