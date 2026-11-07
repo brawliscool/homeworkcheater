@@ -1,0 +1,33 @@
+name: One-time patched dependency upgrade
+on:
+  push:
+    paths:
+      - .github/workflows/upgrade-dependencies.yml
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Upgrade framework and React to patched releases
+        run: npm install --save-exact next@16.4.5 react@19.3.1 react-dom@19.3.1 eslint-config-next@16.4.5
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Commit verified patched dependencies
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Upgrade Next.js and React to patched versions"
+            git push origin HEAD:main
+          fi
