@@ -1,59 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SolveShot AI
 
-## Getting Started
+A mobile-first AI homework-solving website. **This is a reconstructed, independently maintainable implementation based on the published SolveShot AI interface, not an exact export of the original ChatGPT Sites source code.** The original Site remains at https://solveshot-ai.jmoney69420.chatgpt.site.
 
-### 1. Install dependencies
+## Features
 
-```bash
-npm install
-```
+- Take a homework photo on a phone, select screenshots, or drag and drop up to three images.
+- Enter a text question or ask a follow-up after a solution.
+- Step-by-step answers for math, science, English, history, and other subjects using a configurable vision-capable AI model.
+- Browser-local solution history (no account or server-side saved history).
+- Responsive dark/purple layout with accessible desktop and mobile navigation.
+- API credentials stay on the server; images are sent to the chosen AI provider only when the user submits a question.
 
-### 2. Configure your DeepSeek credentials
+## Run locally
 
-Create a `.env.local` file in the project root and add your API key. The server reads the variables at build/start time.
-
-```bash
-DEEPSEEK_API_KEY=sk-your-key-here
-# Optional overrides
-# DEEPSEEK_API_URL=https://api.deepseek.com/v3.2_speciale_expires_on_20251215
-# DEEPSEEK_MODEL=deepseek-v3.2_speciale_expires_on_20251215
-```
-
-> ⚠️ Never commit `.env.local` or share your real key publicly.
-
-### 3. Run the development server
-
-```bash
+```sh
+npm ci
+cp .env.example .env.local
+# Edit .env.local and add your API key
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) to use HomeworkHelper. Type a homework question (or add screenshots) and the app will call the `/api/solve` endpoint, which proxies the request to DeepSeek and streams back a step-by-step solution.
+Visit http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set `SOLVESHOT_API_KEY` or `OPENAI_API_KEY` (server-side, never `NEXT_PUBLIC_`).
 
-### 4. (Optional) Test the API route directly
+- `SOLVESHOT_API_KEY` — API key for your OpenAI-compatible provider (recommended).
+- `SOLVESHOT_API_URL` — full chat completions URL; default `https://api.openai.com/v1/chat/completions`.
+- `SOLVESHOT_MODEL` — vision-capable model ID; default `gpt-4o-mini` for OpenAI.
+- `OPENAI_API_KEY` — alternative to `SOLVESHOT_API_KEY` for OpenAI.
+- `DEEPSEEK_API_KEY` — optional text model fallback; for image uploads use a provider and model that explicitly support image inputs.
 
-```bash
-curl -X POST http://localhost:3000/api/solve \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Explain how to solve 2x + 5 = 15"}'
+Example using OpenAI:
+
+```
+OPENAI_API_KEY=your_key_here
+SOLVESHOT_MODEL=gpt-4o-mini
 ```
 
-You should receive a JSON payload containing the generated answer.
+The API will return an actionable configuration error if no key is set. Keys are never exposed to browser JavaScript or committed to this repository.
 
-## Learn More
+## Testing
 
-To learn more about Next.js, take a look at the following resources:
+```sh
+npm run build
+npm run lint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Try a text question and a JPG screenshot to verify that the configured model responds. No paid AI call is made as part of a build or lint run.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment and security notes
 
-## Deploy on Vercel
+Provide the same server-side environment variables in your hosting provider. **Before opening a paid API to the general public, add durable rate limiting, user authentication, usage quotas, provider-spend alerts, and a privacy policy.** The demonstration is not a monetized subscription system; the Free Plan label is visual only. History is intentionally limited to the current browser/device. API photos are sent to the configured third-party provider; consult that provider's data retention policy.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Migration provenance
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Source design reference: published SolveShot AI Site at `solveshot-ai.jmoney69420.chatgpt.site`, with source-text projection supplied by the user's ChatGPT library.
+- Existing repository `brawliscool/homeworkcheater` was preserved in a backup branch before reconstruction.
+- The original ChatGPT Sites database, uploads and other backend state were **not** imported.
