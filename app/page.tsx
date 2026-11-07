@@ -61,26 +61,25 @@ export default function Home() {
   const [lastSubject, setLastSubject] = useState("");
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
-  const [history, setHistory] = useState<SavedSolution[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [history, setHistory] = useState<SavedSolution[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(saved) ? saved.filter((item) => item && typeof item.answer === "string").slice(0, MAX_HISTORY) : [];
+    } catch { return []; }
+  });
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const activeUrls = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
-      if (Array.isArray(saved)) setHistory(saved.filter((item) => item && typeof item.answer === "string").slice(0, MAX_HISTORY));
-    } catch { /* Storage may be unavailable. */ }
-    setHistoryLoaded(true);
     const urls = activeUrls.current;
     return () => { urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear(); };
   }, []);
 
   useEffect(() => {
-    if (!historyLoaded) return;
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch { /* Private browsing can block storage. */ }
-  }, [history, historyLoaded]);
+  }, [history]);
 
   const addFiles = (files: File[]) => {
     const supported = files.filter((file) => SUPPORTED_TYPES.has(file.type) && file.size <= MAX_FILE_BYTES);
