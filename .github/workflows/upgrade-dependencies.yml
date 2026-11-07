@@ -1,4 +1,5 @@
 name: One-time patched dependency upgrade
+# Re-run after React 19.3 lint compatibility fix.
 on:
   push:
     paths:
