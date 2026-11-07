@@ -1,34 +1,11 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "HomeworkHelper - AI Homework Assistant",
-  description: "Snap a photo, get instant help.",
+  title:"SolveShot AI | Homework help, in a snap",
+  description:"Snap your homework question. Learn the answer step by step.",
+  applicationName:"SolveShot AI",
 };
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
-  );
+export const viewport: Viewport = { width:"device-width", initialScale:1, themeColor:"#0b0b11" };
+export default function RootLayout({ children }: Readonly<{children:React.ReactNode}>) {
+  return <html lang="en"><body>{children}</body></html>;
 }

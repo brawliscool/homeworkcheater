@@ -1,59 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SolveShot AI
 
-## Getting Started
+A mobile-first homework solver based on the active SolveShot AI site's design and text. It replaces the former HomeworkHelper frontend in this repository.
 
-### 1. Install dependencies
+**Important:** This is a faithful reimplementation from the available site description and concept art, not an export of the ChatGPT Sites project's original source code.
 
-```bash
-npm install
-```
+## Features
 
-### 2. Configure your DeepSeek credentials
+- Take a photo on iPhone or Android, upload screenshots, or drag and drop homework images.
+- Client-side photo compression for serverless hosting limits.
+- AI vision solving with detailed steps and follow-up questions.
+- Math, science, English, history, and other subjects.
+- Local browser question history, with reopen and delete.
+- Responsive dark-purple UI with Home, History, and Profile tabs.
 
-Create a `.env.local` file in the project root and add your API key. The server reads the variables at build/start time.
+## Setup
 
-```bash
-DEEPSEEK_API_KEY=sk-your-key-here
-# Optional overrides
-# DEEPSEEK_API_URL=https://api.deepseek.com/v3.2_speciale_expires_on_20251215
-# DEEPSEEK_MODEL=deepseek-v3.2_speciale_expires_on_20251215
-```
+1. Install Node.js 20.9 or newer.
+2. Run npm ci.
+3. Copy .env.example to .env.local and set OPENAI_API_KEY.
+4. Run npm run dev; open http://localhost:3000.
 
-> ⚠️ Never commit `.env.local` or share your real key publicly.
+Environment variables:
+- OPENAI_API_KEY: required server-only secret.
+- AI_API_URL: optional OpenAI-compatible chat completions endpoint. Default: https://api.openai.com/v1/chat/completions
+- AI_MODEL: optional vision-capable model. Default: gpt-4o-mini
+- AI_API_KEY: optional alias for OPENAI_API_KEY.
 
-### 3. Run the development server
+On Vercel, set the API key in the project environment variables before deploying. Without a configured key, the solver intentionally shows a clear configuration error.
 
-```bash
-npm run dev
-```
+## Privacy and limits
 
-Then open [http://localhost:3000](http://localhost:3000) to use HomeworkHelper. Type a homework question (or add screenshots) and the app will call the `/api/solve` endpoint, which proxies the request to DeepSeek and streams back a step-by-step solution.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-### 4. (Optional) Test the API route directly
-
-```bash
-curl -X POST http://localhost:3000/api/solve \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Explain how to solve 2x + 5 = 15"}'
-```
-
-You should receive a JSON payload containing the generated answer.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Photos are sent to the configured third-party AI service to solve questions. Photos are not stored in the browser's history. Up to 40 text question-and-answer records are kept in localStorage on the device, without server-side account sync. No payments, free tier, or subscriptions are simulated. API usage is billed to the key owner according to the AI provider's rates.

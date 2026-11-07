@@ -1,317 +1,155 @@
-'use client';
+"use client";
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
 
-import Image from "next/image";
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+type Entry = { id: string; question: string; answer: string; date: string; photos: number };
+type Photo = { id: string; file: File; url: string };
+type View = "home" | "history" | "profile";
+const HISTORY_KEY = "solveshot-ai-history";
+const id = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-type Screenshot = {
-  id: string;
-  name: string;
-  previewUrl: string;
-};
+async function encodePhoto(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error("Could not open photo. Use JPG or PNG.")); img.src = url; });
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 1450 / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Photo processing is unavailable.");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    let data = canvas.toDataURL("image/jpeg", 0.78);
+    if (data.length > 1300000) data = canvas.toDataURL("image/jpeg", 0.53);
+    if (data.length > 1300000) throw new Error("Photo too detailed. Crop it and try again.");
+    return data;
+  } finally { URL.revokeObjectURL(url); }
+}
 
 export default function Home() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewUrls = useRef<Set<string>>(new Set());
-  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [view, setView] = useState<View>("home");
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const hasScreenshots = useMemo(() => screenshots.length > 0, [screenshots]);
-  const formattedAnswer = useMemo(() => {
-    if (!answer) return [];
-    return answer
-      .split(/\n{2,}/)
-      .map((block) => block.trim())
-      .filter(Boolean);
-  }, [answer]);
-
-  const handlePlusClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedQuestion = question.trim();
-
-    if (!trimmedQuestion) {
-      setErrorMessage("Type a homework question to get started.");
-      return;
-    }
-
-    setIsLoading(true);
-    setAnswer(null);
-    setErrorMessage(null);
-
-    try {
-      const response = await fetch("/api/solve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmedQuestion }),
-      });
-
-      const body = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const details =
-          body?.error ||
-          body?.details ||
-          "Something went wrong while contacting DeepSeek.";
-        throw new Error(details);
-      }
-
-      setAnswer(
-        body?.answer ?? "I couldn't generate a solution this time. Please retry."
-      );
-      setQuestion("");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unexpected error while solving your question."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const isSubmitDisabled = !question.trim() || isLoading;
-
-  const handleFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(event.target.files ?? []).filter((file) =>
-      file.type.startsWith("image/")
-    );
-
-    if (!newFiles.length) {
-      event.target.value = "";
-      return;
-    }
-
-    const preparedFiles = newFiles.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      previewUrls.current.add(previewUrl);
-      return {
-        id: `${file.name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: file.name,
-        previewUrl,
-      };
-    });
-
-    setScreenshots((prev) => [...prev, ...preparedFiles]);
-    event.target.value = "";
-  };
-
-  const clearScreenshots = () => {
-    if (!screenshots.length) return;
-    previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrls.current.clear();
-    setScreenshots([]);
-  };
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [history, setHistory] = useState<Entry[]>([]);
+  const [active, setActive] = useState<Entry | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState("");
+  const photoRef = useRef<Photo[]>([]);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const answerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const urls = previewUrls.current;
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-      urls.clear();
-    };
+    try {
+      const value = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      if (Array.isArray(value)) setHistory(value.filter((x) => x && typeof x.question === "string" && typeof x.answer === "string").slice(0, 40));
+    } catch { /* Storage can be disabled. */ }
+    return () => photoRef.current.forEach((p) => URL.revokeObjectURL(p.url));
   }, []);
+  useEffect(() => { photoRef.current = photos; }, [photos]);
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-8 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      {/* Header */}
-      <header className="w-full max-w-5xl flex justify-between items-center mb-12">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold">
-            AI
-          </div>
-          <h1 className="text-xl font-bold text-text-primary">HomeworkHelper</h1>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-end">
-            <span className="text-xs text-text-secondary uppercase tracking-wider">Free Snaps</span>
-            <span className="text-success font-bold">5 left</span>
-          </div>
-          <button className="bg-success text-white px-6 py-2 rounded-full font-semibold hover:opacity-90 transition-opacity">
-            Subscribe
-          </button>
-        </div>
-      </header>
+  function persist(next: Entry[]) {
+    setHistory(next);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* Local storage is optional. */ }
+  }
+  function addFiles(files: FileList | File[]) {
+    setError("");
+    const available = 3 - photos.length;
+    if (available < 1) { setError("Maximum 3 photos per question."); return; }
+    const chosen = Array.from(files).filter((f) => f.type.startsWith("image/") && f.size <= 15 * 1024 * 1024).slice(0, available);
+    if (!chosen.length) { setError("Please choose an image smaller than 15 MB."); return; }
+    if (files.length > available) setError("Only the first " + available + " photo(s) were added.");
+    setPhotos((old) => [...old, ...chosen.map((file) => ({ file, id: id(), url: URL.createObjectURL(file) }))]);
+  }
+  function selected(event: ChangeEvent<HTMLInputElement>) { if (event.target.files) addFiles(event.target.files); event.target.value = ""; }
+  function dropped(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }
+  function removePhoto(target: string) {
+    const photo = photos.find((p) => p.id === target);
+    if (photo) URL.revokeObjectURL(photo.url);
+    setPhotos((old) => old.filter((p) => p.id !== target));
+  }
+  function resetPhotos() { photos.forEach((p) => URL.revokeObjectURL(p.url)); setPhotos([]); }
+  function newQuestion() { setQuestion(""); resetPhotos(); setError(""); setActive(null); setView("home"); }
+  function openEntry(entry: Entry) { setActive(entry); setQuestion(""); setError(""); setView("home"); }
+  function deleteEntry(target: string) { persist(history.filter((e) => e.id !== target)); if (active?.id === target) setActive(null); }
 
-      {/* Main Content Area */}
-      <main className="flex flex-col gap-8 w-full max-w-3xl flex-grow">
-        
-        {/* Chat / Result Area */}
-        <div className="bg-surface rounded-2xl p-6 min-h-[400px] flex flex-col gap-6 shadow-lg border border-white/5">
-          {hasScreenshots ? (
-            <div className="flex flex-col flex-grow gap-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary">Selected screenshots</h3>
-                  <p className="text-sm text-text-secondary">
-                    {screenshots.length} file{screenshots.length > 1 ? "s" : ""} ready to analyze
-                  </p>
-                </div>
-                <button
-                  onClick={clearScreenshots}
-                  className="text-sm text-primary font-semibold hover:underline"
-                  type="button"
-                >
-                  Clear
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {screenshots.map((shot) => (
-                  <div
-                    key={shot.id}
-                    className="rounded-xl border border-white/10 bg-surface p-3 flex flex-col gap-3"
-                  >
-                    <div className="relative w-full pt-[56%] overflow-hidden rounded-lg bg-black/20">
-                      <Image
-                        src={shot.previewUrl}
-                        alt={shot.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 100vw, 50vw"
-                        unoptimized
-                      />
-                    </div>
-                    <p className="text-xs text-text-secondary truncate">{shot.name}</p>
-                  </div>
-                ))}
-              </div>
+  async function solve(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || (!question.trim() && !photos.length)) return;
+    setBusy(true); setError("");
+    try {
+      const images = await Promise.all(photos.map((p) => encodePhoto(p.file)));
+      const res = await fetch("/api/solve", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question.trim(), images, context: active ? { question: active.question, answer: active.answer } : undefined }),
+      });
+      const data: { answer?: string; error?: string } = await res.json().catch(() => ({}));
+      if (!res.ok || !data.answer) throw new Error(data.error || "The solver is unavailable. Please retry.");
+      const entry: Entry = {
+        id: id(), question: question.trim() || "Question from photo",
+        answer: data.answer, date: new Date().toISOString(), photos: photos.length,
+      };
+      setActive(entry); persist([entry, ...history].slice(0, 40));
+      setQuestion(""); resetPhotos(); setView("home");
+      setTimeout(() => answerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch (e) { setError(e instanceof Error ? e.message : "An unexpected error occurred."); }
+    finally { setBusy(false); }
+  }
+
+  return <div className="app-shell">
+    <header className="topbar">
+      <button type="button" className="brand" onClick={newQuestion}><span className="logo">✦</span><span>SolveShot <b>AI</b></span></button>
+      <div className="header-right"><span className="plan-chip"><i /> STUDY MODE</span><button type="button" className="new-button" onClick={newQuestion}>＋ <span>New question</span></button></div>
+    </header>
+    <main className="content">
+      {view === "home" && <>
+        {!active && <section className="hero"><div className="eyebrow">✳ &nbsp; YOUR AI STUDY SIDEKICK</div><h1>Homework help,<br /><em>in a snap.</em></h1><p>Stuck on a question? Just snap a photo and get the clarity you need to keep going.</p></section>}
+        <section className="solver">
+          <div className="section-heading"><span className="section-logo">✦</span><div><h2>{active ? "Keep learning together" : "Let’s solve it together"}</h2><p>{active ? "Ask a follow-up about your solution." : "Start by adding a photo of your question."}</p></div></div>
+          <div className={dragging ? "drop-area dragging" : "drop-area"}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { e.preventDefault(); setDragging(false); }} onDrop={dropped}>
+            <span className="camera-glyph">▣<sup>✦</sup></span>
+            <h3>Have a question? Drop it here.</h3><p>Take a photo, upload a screenshot, or type below.</p>
+            <div className="upload-buttons">
+              <button type="button" className="btn primary" onClick={() => cameraRef.current?.click()}>◉ &nbsp;Take a photo</button>
+              <button type="button" className="btn secondary" onClick={() => uploadRef.current?.click()}>↥ &nbsp;Upload screenshot</button>
             </div>
-          ) : (
-            !answer &&
-            !isLoading &&
-            !errorMessage && (
-              <div className="flex-grow flex flex-col justify-center items-center text-center p-8 opacity-60">
-                <div className="w-16 h-16 mb-4 rounded-full bg-surface border-2 border-dashed border-text-secondary flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-text-secondary">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-text-primary mb-2">Upload your homework</h3>
-                <p className="text-text-secondary max-w-sm">
-                  Take a photo of a math problem or question. Our vision AI will analyze it and help you solve it.
-                </p>
-              </div>
-            )
-          )}
-
-          <div className="rounded-2xl border border-white/10 bg-black/20 p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">AI Solution</h3>
-                <p className="text-sm text-text-secondary">
-                  {isLoading
-                    ? "Analyzing your question..."
-                    : answer
-                      ? "Here is the breakdown:"
-                      : "Ask a question or upload a screenshot to get help."}
-                </p>
-              </div>
-              {isLoading && (
-                <div className="flex items-center gap-2 text-xs text-text-secondary">
-                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  Thinking
-                </div>
-              )}
-            </div>
-
-            {errorMessage && (
-              <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/30 rounded-xl px-4 py-3">
-                {errorMessage}
-              </p>
-            )}
-
-            {!errorMessage && (
-              <>
-                {isLoading && (
-                  <div className="flex items-center gap-3 text-text-secondary">
-                    <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <span>Working on it...</span>
-                  </div>
-                )}
-
-                {!isLoading && answer && (
-                  <div className="space-y-3 text-sm leading-relaxed text-text-primary">
-                    {formattedAnswer.map((block, index) => (
-                      <p key={`${block}-${index}`} className="bg-white/5 rounded-xl px-4 py-3 whitespace-pre-wrap">
-                        {block}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
-                {!isLoading && !answer && (
-                  <p className="text-sm text-text-secondary">
-                    Need help? Type a prompt like &ldquo;Explain how to solve quadratic equations&rdquo; and I will walk you through it.
-                  </p>
-                )}
-              </>
-            )}
+            <small>or drag and drop an image here · JPG, PNG, WebP</small>
+            <input hidden type="file" accept="image/*" capture="environment" ref={cameraRef} onChange={selected} />
+            <input hidden type="file" accept="image/*" multiple ref={uploadRef} onChange={selected} />
           </div>
-        </div>
-
-        {/* Input Area */}
-        <form className="relative" onSubmit={handleSubmit}>
-          <button
-            type="button"
-            onClick={handlePlusClick}
-            className="absolute inset-y-0 left-1 flex items-center justify-center w-10 text-primary rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/40 hover:bg-white/5 transition-colors z-10"
-            aria-label="Add screenshots"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFilesSelected}
-          />
-          <input
-            type="text"
-            placeholder="Type a question or upload a photo..."
-            className="w-full bg-surface border border-white/10 rounded-full py-4 pl-12 pr-12 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder-text-secondary/50"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className="absolute inset-y-1 right-1 bg-primary hover:bg-indigo-500 text-white p-3 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitDisabled}
-            aria-label="Send question"
-          >
-            {isLoading ? (
-              <span className="block h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5" />
-              </svg>
-            )}
-          </button>
-        </form>
-
-      </main>
-      
-      <footer className="mt-12 text-center text-text-secondary text-sm">
-        <p>© 2024 HomeworkAI. All rights reserved.</p>
-      </footer>
-    </div>
-  );
+          {!!photos.length && <div className="photo-list">{photos.map((p) => <div className="photo" key={p.id}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.url} alt={p.file.name} /><button type="button" onClick={() => removePhoto(p.id)} aria-label={"Remove " + p.file.name}>×</button>
+          </div>)}</div>}
+          <form onSubmit={solve}>
+            <label htmlFor="question">Your question <span>(optional if you added a photo)</span></label>
+            <textarea rows={3} id="question" maxLength={6000} value={question} disabled={busy} onChange={(e) => setQuestion(e.target.value)}
+              placeholder={active ? "Ask a follow-up question…" : "Or type your question here…"} />
+            {error && <div className="error" role="alert">{error}</div>}
+            <div className="form-footer"><span className="privacy">♢ &nbsp;Photos are sent to your configured AI provider and are not stored in history.</span>
+              <button type="submit" className="btn primary submit" disabled={busy || (!question.trim() && !photos.length)}>{busy ? "Solving…" : "Solve question ↗"}</button></div>
+          </form>
+        </section>
+        {active && <section ref={answerRef} className="answer" aria-live="polite"><div className="answer-title"><span>✳</span><div><small>YOUR SOLUTION</small><h2>{active.question}</h2></div></div><div className="solution">{active.answer}</div><div className="answer-actions"><button type="button" onClick={() => navigator.clipboard?.writeText(active.answer)}>Copy answer</button><button type="button" onClick={newQuestion}>New problem ↗</button></div></section>}
+        {!active && <section className="features"><span className="eyebrow">SIMPLE AS THAT</span><h2>From stuck to <em>unstoppable.</em></h2><div className="feature-grid">
+          <article><span>✳</span><h3>Snap your question</h3><p>Photo, screenshot, or upload.</p></article>
+          <article><span>◈</span><h3>Get a clear answer</h3><p>Understand the how, not just the what.</p></article>
+          <article><span>✦</span><h3>Keep learning</h3><p>Ask follow-ups when you need them.</p></article>
+        </div><div className="subjects"><small>MADE FOR YOUR SUBJECTS</small><div><span>✳ Math</span><span>◈ Science</span><span>✎ English</span><span>◷ History</span><span>＋ More</span></div></div></section>}
+      </>}
+      {view === "history" && <section className="subpage"><span className="eyebrow">YOUR STUDY TRAIL</span><h1>Question <em>history.</em></h1><p>Solutions saved on this device.</p>
+        {!history.length ? <div className="empty"><div>◷</div><h2>Nothing here yet</h2><p>Your solved questions will appear here.</p><button className="btn primary" onClick={newQuestion}>Solve a question</button></div> :
+          <div className="history-list">{history.map((item) => <article key={item.id}><button className="history-open" onClick={() => openEntry(item)}><small>{new Date(item.date).toLocaleDateString()} · {item.photos} photo(s)</small><strong>{item.question}</strong><span>View answer ↗</span></button><button className="delete" onClick={() => deleteEntry(item.id)} aria-label="Delete question">×</button></article>)}</div>}
+      </section>}
+      {view === "profile" && <section className="subpage"><span className="eyebrow">YOUR LEARNING WORKSPACE</span><h1>Your <em>workspace.</em></h1><p>Study smarter, one question at a time.</p><div className="profile"><div className="avatar">✦</div><h2>SolveShot AI</h2><p>No account required.</p><div className="stats"><strong>{history.length}</strong><span>Saved solutions on this device</span></div><p>Your text history is stored only in this browser. Photos are not stored in your history.</p><button className="btn secondary" onClick={() => setView("history")}>View history</button></div></section>}
+    </main>
+    <footer>© {new Date().getFullYear()} SolveShot AI · Made for the curious ✦</footer>
+    <nav className="nav" aria-label="Primary navigation">
+      <button type="button" className={view === "home" ? "active" : ""} onClick={() => setView("home")}><span>⌂</span>Home</button>
+      <button type="button" className={view === "history" ? "active" : ""} onClick={() => setView("history")}><span>◷</span>History</button>
+      <button type="button" className={view === "profile" ? "active" : ""} onClick={() => setView("profile")}><span>◯</span>Profile</button>
+    </nav>
+  </div>;
 }
