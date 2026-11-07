@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node.js CommonJS test harness intentionally uses require. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,16 +11,16 @@ const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind
 const reply = { json(payload, init = {}) { return Response.json(payload, init); } };
 
 function load(env, mockFetch) {
-  const module = { exports: {} };
+  const localModule = { exports: {} };
   vm.runInNewContext(js, {
-    exports: module.exports,
-    module,
+    exports: localModule.exports,
+    module: localModule,
     process: { env },
     Request, Response, AbortSignal, console,
     require(name) { assert.equal(name, 'next/server'); return { NextResponse: reply }; },
     fetch: mockFetch,
   }, { filename: 'route.js' });
-  return module.exports.POST;
+  return localModule.exports.POST;
 }
 
 function request(input) {
